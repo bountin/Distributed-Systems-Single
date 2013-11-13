@@ -1,18 +1,21 @@
 package proxy;
 
+import cli.Command;
+import cli.Shell;
+import message.Response;
+import message.response.MessageResponse;
 import util.Config;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
+import java.util.*;
 
 public class ProxyImpl {
 
 	static final HashMap<String, Integer> creditList   = new HashMap<String, Integer>();
 	static final HashMap<String, String>  passwordList = new HashMap<String, String>();
+
+	private static Shell shell;
 
 	public static void main(String[] args) throws IOException {
 		Config config = new Config("proxy");
@@ -48,6 +51,40 @@ public class ProxyImpl {
 
 		ServerSocket tcpSocket = new ServerSocket(portTCP);
 		ClientThread.initNewThread(tcpSocket, creditList, passwordList);
+
+		shell = new Shell("Client", System.out, System.in);
+		shell.register(new ProxyCommands());
+		shell.run();
+
+	}
+
+	private static class ProxyCommands implements IProxyCli {
+		@Override
+		@Command
+		public Response fileservers() throws IOException {
+			return null;  //To change body of implemented methods use File | Settings | File Templates.
+		}
+
+		@Override
+		@Command
+		public Response users() throws IOException {
+			StringBuilder message = new StringBuilder();
+
+			Set<String> users = creditList.keySet();
+
+			int i = 1;
+			for (String user: users) {
+				message.append(i++ + ". " + user + " " + "???" + " Credits: " + creditList.get(user) + '\n');
+			}
+
+			return new MessageResponse(message.toString());
+		}
+
+		@Override
+		@Command
+		public MessageResponse exit() throws IOException {
+			return null;  //To change body of implemented methods use File | Settings | File Templates.
+		}
 	}
 
 //	private static class UDPThread implements Runnable {
