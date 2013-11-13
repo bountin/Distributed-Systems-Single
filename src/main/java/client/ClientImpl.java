@@ -118,9 +118,13 @@ public class ClientImpl {
 
 		@Command
 		public MessageResponse exit() throws IOException {
+			MessageResponse response = null;
+			if (loggedIn)
+				response = logout();
+
 			shell.close();
 			System.in.close();
-			return null;
+			return response;
 		}
 
 		private void sendRequest(Request request) throws IOException {
