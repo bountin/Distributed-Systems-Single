@@ -7,6 +7,7 @@ import message.response.MessageResponse;
 import util.Config;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.util.*;
 
@@ -15,8 +16,10 @@ public class ProxyImpl {
 	static final HashMap<String, Integer> creditList   = new HashMap<String, Integer>();
 	static final HashMap<String, String>  passwordList = new HashMap<String, String>();
 	static final HashMap<String, ArrayList<ClientThread>> onlineList = new HashMap<String, ArrayList<ClientThread>>();
+	static final ArrayList<ObjectOutputStream> streamList = new ArrayList<ObjectOutputStream>();
 
 	private static Shell shell;
+	private static ServerSocket tcpSocket;
 
 	public static void main(String[] args) throws IOException {
 		Config config = new Config("proxy");
@@ -50,8 +53,8 @@ public class ProxyImpl {
 			}
 		}
 
-		ServerSocket tcpSocket = new ServerSocket(portTCP);
-		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList);
+		tcpSocket = new ServerSocket(portTCP);
+		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList);
 
 		shell = new Shell("Client", System.out, System.in);
 		shell.register(new ProxyCommands());
@@ -89,7 +92,14 @@ public class ProxyImpl {
 		@Override
 		@Command
 		public MessageResponse exit() throws IOException {
-			return null;  //To change body of implemented methods use File | Settings | File Templates.
+			for (ObjectOutputStream stream: streamList) {
+				stream.close();
+			}
+
+			tcpSocket.close();
+			shell.close();
+			System.in.close();
+			return new MessageResponse("Proxy stopping");
 		}
 	}
 

@@ -12,10 +12,12 @@ import message.response.LoginResponse;
 import message.response.MessageResponse;
 import util.Config;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.MissingResourceException;
 
 public class ClientImpl {
@@ -50,6 +52,12 @@ public class ClientImpl {
 		shell = new Shell("Client", System.out, System.in);
 		shell.register(new ClientCommands());
 		shell.run();
+	}
+
+	private static void stop() throws IOException {
+		shell.close();
+		System.in.close();
+		System.exit(0);
 	}
 
 	static class ClientCommands implements IClientCli {
@@ -122,14 +130,18 @@ public class ClientImpl {
 			if (loggedIn)
 				response = logout();
 
-			shell.close();
-			System.in.close();
+			stop();
 			return response;
 		}
 
 		private void sendRequest(Request request) throws IOException {
-			out.writeObject(request);
-			out.flush();
+			try {
+				out.writeObject(request);
+				out.flush();
+			} catch (SocketException e) {
+				shell.writeLine("Lost connection to Proxy");
+				stop();
+			}
 		}
 
 		private Response recvResponse() throws IOException {
@@ -140,6 +152,10 @@ public class ClientImpl {
 				}
 
 				return (Response) object;
+			} catch (EOFException e) {
+				shell.writeLine("Lost connection to Proxy");
+				stop();
+				return null;
 			} catch (ClassNotFoundException e) {
 				return new MessageResponse("Got an invalid response from the Proxy: " + e.getMessage());
 			}

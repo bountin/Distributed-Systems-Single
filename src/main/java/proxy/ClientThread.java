@@ -14,42 +14,45 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 class ClientThread implements Runnable, IProxy {
-	private final HashMap<String, ArrayList<ClientThread>> onlineList;
 	private ServerSocket tcpSocket;
+	private final HashMap<String, ArrayList<ClientThread>> onlineList;
 	private final HashMap<String, Integer> creditList;
 	private final HashMap<String, String> passwordList;
+	private final ArrayList<ObjectOutputStream> streamList;
 	String user = null;
 
-	private ClientThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList, HashMap<String, ArrayList<ClientThread>> onlineList) {
+	private ClientThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList, HashMap<String, ArrayList<ClientThread>> onlineList, ArrayList<ObjectOutputStream> streamList) {
 		this.tcpSocket = tcpSocket;
 		this.creditList = creditList;
 		this.passwordList = passwordList;
 		this.onlineList = onlineList;
+		this.streamList = streamList;
 	}
 
-	static public void initNewThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList, HashMap<String, ArrayList<ClientThread>> onlineList) {
-		(new Thread(new ClientThread(tcpSocket, creditList, passwordList, onlineList))).start();
+	static public void initNewThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList, HashMap<String, ArrayList<ClientThread>> onlineList, ArrayList<ObjectOutputStream> streamList) {
+		(new Thread(new ClientThread(tcpSocket, creditList, passwordList, onlineList, streamList))).start();
 	}
 
 	public void run() {
 		Socket socket;
+		ObjectOutputStream out = null;
+		ObjectInputStream in = null;
 		try {
 			socket = tcpSocket.accept();
-			initNewThread(tcpSocket, creditList, passwordList, onlineList);
+			initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList);
 
-			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+			out = new ObjectOutputStream(socket.getOutputStream());
+			streamList.add(out);
 			out.flush();
-			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-
-			Object request;
+			in = new ObjectInputStream(socket.getInputStream());
 
 			while (true) {
-				request = in.readObject();
-
+				Object request = in.readObject();
 				Response response;
 
 				try {
@@ -71,8 +74,10 @@ class ClientThread implements Runnable, IProxy {
 				out.writeObject(response);
 				out.flush();
 			}
-		} catch (EOFException unused) {
+		} catch (EOFException ignored) {
 			// Client aborted connection
+		} catch (SocketException ignored) {
+			// Server is shutting down
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
@@ -82,6 +87,16 @@ class ClientThread implements Runnable, IProxy {
 				synchronized (onlineList) {
 					onlineList.get(user).remove(this);
 				}
+			}
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException ignored) {}
+			}
+			if (out != null) {
+				try {
+					out.close();
+				} catch (IOException ignored) {}
 			}
 		}
 	}
