@@ -56,16 +56,14 @@ public class ClientImpl {
 		public LoginResponse login(String username, String password) throws IOException {
 			sendRequest(new LoginRequest(username, password));
 
-			Object response;
-			try {
-				response = in.readObject();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				return null;
-			}
+			Response response = recvResponse();
 
 			if (response instanceof LoginResponse) {
-				return (LoginResponse) response;
+				LoginResponse loginResponse = (LoginResponse) response;
+				if (loginResponse.getType() == LoginResponse.Type.SUCCESS) {
+					loggedIn = true;
+				}
+				return loginResponse;
 			} else {
 				return null;
 			}
@@ -75,40 +73,14 @@ public class ClientImpl {
 		@Command
 		public Response credits() throws IOException {
 			sendRequest(new CreditsRequest());
-
-			Object response;
-			try {
-				response = in.readObject();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				return null;
-			}
-
-			if (response instanceof Response) {
-				return (Response) response;
-			}
-
-			return null;
+			return recvResponse();
 		}
 
 		@Override
 		@Command
 		public Response buy(long credits) throws IOException {
 			sendRequest(new BuyRequest(credits));
-
-			Object response;
-			try {
-				response = in.readObject();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				return null;
-			}
-
-			if (response instanceof Response) {
-				return (Response) response;
-			}
-
-			return null;
+			return recvResponse();
 		}
 
 		@Override
@@ -145,6 +117,19 @@ public class ClientImpl {
 		private void sendRequest(Request request) throws IOException {
 			out.writeObject(request);
 			out.flush();
+		}
+
+		private Response recvResponse() throws IOException {
+			try {
+				Object object = in.readObject();
+				if (! (object instanceof Response)) {
+					return new MessageResponse("Got an invalid response from the Proxy: " + object.getClass());
+				}
+
+				return (Response) object;
+			} catch (ClassNotFoundException e) {
+				return new MessageResponse("Got an invalid response from the Proxy: " + e.getMessage());
+			}
 		}
 	}
 }
