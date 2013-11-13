@@ -2,12 +2,12 @@ package client;
 
 import cli.Command;
 import cli.Shell;
+import message.Request;
 import message.Response;
 import message.request.BuyRequest;
 import message.request.CreditsRequest;
 import message.request.LoginRequest;
-import message.response.BuyResponse;
-import message.response.CreditsResponse;
+import message.request.LogoutRequest;
 import message.response.LoginResponse;
 import message.response.MessageResponse;
 import util.Config;
@@ -54,9 +54,7 @@ public class ClientImpl {
 		@Override
 		@Command
 		public LoginResponse login(String username, String password) throws IOException {
-			LoginRequest request = new LoginRequest(username, password);
-			out.writeObject(request);
-			out.flush();
+			sendRequest(new LoginRequest(username, password));
 
 			Object response;
 			try {
@@ -76,9 +74,7 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response credits() throws IOException {
-			CreditsRequest request = new CreditsRequest();
-			out.writeObject(request);
-			out.flush();
+			sendRequest(new CreditsRequest());
 
 			Object response;
 			try {
@@ -98,9 +94,7 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response buy(long credits) throws IOException {
-			BuyRequest request = new BuyRequest(credits);
-			out.writeObject(request);
-			out.flush();
+			sendRequest(new BuyRequest(credits));
 
 			Object response;
 			try {
@@ -146,6 +140,11 @@ public class ClientImpl {
 			shell.close();
 			System.in.close();
 			return null;
+		}
+
+		private void sendRequest(Request request) throws IOException {
+			out.writeObject(request);
+			out.flush();
 		}
 	}
 }
