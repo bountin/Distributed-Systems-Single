@@ -173,7 +173,9 @@ public class ProxyImpl {
 
 		@Override
 		public MessageResponse logout() throws IOException {
-			return null;  //To change body of implemented methods use File | Settings | File Templates.
+			MessageResponse response = new MessageResponse("Logged out " + user);
+			user = null;
+			return response;
 		}
 
 		private void checkLoginStatus() throws NotLoggedInException {
