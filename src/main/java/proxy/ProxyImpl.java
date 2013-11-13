@@ -1,12 +1,12 @@
 package proxy;
 
 import message.Request;
-import message.request.BuyRequest;
-import message.request.CreditsRequest;
-import message.request.LoginRequest;
+import message.Response;
+import message.request.*;
 import message.response.BuyResponse;
 import message.response.CreditsResponse;
 import message.response.LoginResponse;
+import message.response.MessageResponse;
 import util.Config;
 
 import java.io.EOFException;
@@ -58,9 +58,10 @@ public class ProxyImpl {
 		TCPThread.initNewThread(tcpSocket);
 	}
 
-	private static class TCPThread implements Runnable {
+	private static class TCPThread implements Runnable, IProxy {
 
 		private ServerSocket tcpSocket;
+		String user = "";
 
 		private TCPThread(ServerSocket tcpSocket) {
 			this.tcpSocket = tcpSocket;
@@ -81,60 +82,91 @@ public class ProxyImpl {
 				ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 
 				Object request;
-				String user = "";
 
 				while (true) {
 					request = in.readObject();
 
-					if (!(request instanceof Request)) {
-						System.out.println("Invalid data");
-						throw new IOException();
-					}
+					Response response;
 
 					if (request instanceof LoginRequest) {
-						LoginRequest loginRequest = (LoginRequest) request;
-						LoginResponse response;
-						if (! passwordList.containsKey(loginRequest.getUsername())) {
-							// Check if user is known - The type enum does not support this so just write WRONG_CREDENTIALS
-							response = new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
-						} else if (! passwordList.get(loginRequest.getUsername()).equals(loginRequest.getPassword())) {
-							// Check if passwort is correct
-							response = new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
-						} else {
-							user = loginRequest.getUsername();
-							response = new LoginResponse(LoginResponse.Type.SUCCESS);
-						}
-						out.writeObject(response);
-						out.flush();
+						response = login((LoginRequest) request);
 					} else if (request instanceof CreditsRequest) {
-						int credits;
-						synchronized (creditList) {
-							credits = creditList.get(user);
-						}
-						CreditsResponse response = new CreditsResponse(credits);
-						out.writeObject(response);
-						out.flush();
+						response = credits();
 					} else if (request instanceof BuyRequest) {
-						int credits;
-						long creditsToBeBought = Math.max(0, ((BuyRequest) request).getCredits());
-						synchronized (creditList) {
-							credits = creditList.get(user);
-							credits += creditsToBeBought;
-							creditList.put(user, credits);
-						}
-						BuyResponse response = new BuyResponse(credits);
-						out.writeObject(response);
-						out.flush();
+						response = buy((BuyRequest) request);
+					} else if (request instanceof Request) {
+						response = new MessageResponse("Unsupported Request: " + request.getClass());
+					} else {
+						response = new MessageResponse("Got a non-request object");
 					}
+
+					out.writeObject(response);
+					out.flush();
 				}
 			} catch (EOFException unused) {
 				// Client aborted connection
-				return;
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
+		}
+
+		@Override
+		public LoginResponse login(LoginRequest request) throws IOException {
+			// Check if user is known - The type enum does not support this so just write WRONG_CREDENTIALS
+			if (! passwordList.containsKey(request.getUsername())) {
+				return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
+			}
+
+			// Check if passwort is correct
+			if (! passwordList.get(request.getUsername()).equals(request.getPassword())) {
+				return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
+			}
+
+			user = request.getUsername();
+			return new LoginResponse(LoginResponse.Type.SUCCESS);
+		}
+
+		@Override
+		public Response credits() throws IOException {
+			int credits;
+			synchronized (creditList) {
+				credits = creditList.get(user);
+			}
+			return new CreditsResponse(credits);
+		}
+
+		@Override
+		public Response buy(BuyRequest credits) throws IOException {
+			int userCredits;
+			long creditsToBeBought = Math.max(0, credits.getCredits());
+			synchronized (creditList) {
+				userCredits = creditList.get(user);
+				userCredits += creditsToBeBought;
+				creditList.put(user, userCredits);
+			}
+			return new BuyResponse(userCredits);
+		}
+
+		@Override
+		public Response list() throws IOException {
+			return null;  //To change body of implemented methods use File | Settings | File Templates.
+		}
+
+		@Override
+		public Response download(DownloadTicketRequest request) throws IOException {
+			return null;  //To change body of implemented methods use File | Settings | File Templates.
+		}
+
+		@Override
+		public MessageResponse upload(UploadRequest request) throws IOException {
+			return null;  //To change body of implemented methods use File | Settings | File Templates.
+		}
+
+		@Override
+		public MessageResponse logout() throws IOException {
+			return null;  //To change body of implemented methods use File | Settings | File Templates.
 		}
 	}
 
