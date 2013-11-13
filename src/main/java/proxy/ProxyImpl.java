@@ -14,6 +14,7 @@ public class ProxyImpl {
 
 	static final HashMap<String, Integer> creditList   = new HashMap<String, Integer>();
 	static final HashMap<String, String>  passwordList = new HashMap<String, String>();
+	static final HashMap<String, ArrayList<ClientThread>> onlineList = new HashMap<String, ArrayList<ClientThread>>();
 
 	private static Shell shell;
 
@@ -50,7 +51,7 @@ public class ProxyImpl {
 		}
 
 		ServerSocket tcpSocket = new ServerSocket(portTCP);
-		ClientThread.initNewThread(tcpSocket, creditList, passwordList);
+		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList);
 
 		shell = new Shell("Client", System.out, System.in);
 		shell.register(new ProxyCommands());
@@ -74,7 +75,12 @@ public class ProxyImpl {
 
 			int i = 1;
 			for (String user: users) {
-				message.append(i++ + ". " + user + " " + "???" + " Credits: " + creditList.get(user) + '\n');
+				boolean online = false;
+				if (onlineList.containsKey(user) && onlineList.get(user).size() >= 1) {
+					online = true;
+				}
+
+				message.append(i++ + ". " + user + " " + (online ? "online" : "offline") + " Credits: " + creditList.get(user) + '\n');
 			}
 
 			return new MessageResponse(message.toString());

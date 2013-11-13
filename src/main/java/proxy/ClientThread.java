@@ -14,29 +14,32 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 class ClientThread implements Runnable, IProxy {
+	private final HashMap<String, ArrayList<ClientThread>> onlineList;
 	private ServerSocket tcpSocket;
 	private final HashMap<String, Integer> creditList;
 	private final HashMap<String, String> passwordList;
 	String user = null;
 
-	private ClientThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList) {
+	private ClientThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList, HashMap<String, ArrayList<ClientThread>> onlineList) {
 		this.tcpSocket = tcpSocket;
 		this.creditList = creditList;
 		this.passwordList = passwordList;
+		this.onlineList = onlineList;
 	}
 
-	static public void initNewThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList) {
-		(new Thread(new ClientThread(tcpSocket, creditList, passwordList))).start();
+	static public void initNewThread(ServerSocket tcpSocket, HashMap<String, Integer> creditList, HashMap<String, String> passwordList, HashMap<String, ArrayList<ClientThread>> onlineList) {
+		(new Thread(new ClientThread(tcpSocket, creditList, passwordList, onlineList))).start();
 	}
 
 	public void run() {
 		Socket socket;
 		try {
 			socket = tcpSocket.accept();
-			initNewThread(tcpSocket, creditList, passwordList);
+			initNewThread(tcpSocket, creditList, passwordList, onlineList);
 
 			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 			out.flush();
@@ -74,6 +77,12 @@ class ClientThread implements Runnable, IProxy {
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
+		} finally {
+			if (user != null) {
+				synchronized (onlineList) {
+					onlineList.get(user).remove(this);
+				}
+			}
 		}
 	}
 
@@ -90,6 +99,15 @@ class ClientThread implements Runnable, IProxy {
 		}
 
 		user = request.getUsername();
+
+		synchronized (onlineList) {
+			if (! onlineList.containsKey(user)) {
+				onlineList.put(user, new ArrayList<ClientThread>());
+			}
+
+			onlineList.get(user).add(this);
+		}
+
 		return new LoginResponse(LoginResponse.Type.SUCCESS);
 	}
 
