@@ -27,6 +27,8 @@ public class ClientImpl {
 	private static ObjectOutputStream out;
 	private static ObjectInputStream in;
 
+	private static boolean loggedIn = false;
+
 	public static void main(String[] args) throws IOException {
 		Config config = new Config("client");
 
@@ -104,7 +106,14 @@ public class ClientImpl {
 		@Override
 		@Command
 		public MessageResponse logout() throws IOException {
-			return null;
+			sendRequest(new LogoutRequest());
+
+			Response response = recvResponse();
+			if (response instanceof MessageResponse) {
+				return (MessageResponse) response;
+			} else {
+				return null;
+			}
 		}
 
 		@Command
