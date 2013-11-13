@@ -51,9 +51,6 @@ public class ClientImpl {
 	}
 
 	static class ClientCommands implements IClientCli {
-
-		private boolean loggedIn = false;
-
 		@Override
 		@Command
 		public LoginResponse login(String username, String password) throws IOException {
@@ -61,17 +58,16 @@ public class ClientImpl {
 			out.writeObject(request);
 			out.flush();
 
-			Object response = null;
+			Object response;
 			try {
 				response = in.readObject();
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
+				return null;
 			}
 
 			if (response instanceof LoginResponse) {
-				LoginResponse loginResponse = (LoginResponse) response;
-				loggedIn = loginResponse.getType() == LoginResponse.Type.SUCCESS;
-				return loginResponse;
+				return (LoginResponse) response;
 			} else {
 				return null;
 			}
@@ -80,22 +76,20 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response credits() throws IOException {
-			if (!checkLoginStatus())
-				return null;
-
 			CreditsRequest request = new CreditsRequest();
 			out.writeObject(request);
 			out.flush();
 
-			Object response = null;
+			Object response;
 			try {
 				response = in.readObject();
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
+				return null;
 			}
 
-			if (response instanceof CreditsResponse) {
-				return (CreditsResponse) response;
+			if (response instanceof Response) {
+				return (Response) response;
 			}
 
 			return null;
@@ -104,22 +98,20 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response buy(long credits) throws IOException {
-			if (!checkLoginStatus())
-				return null;
-
 			BuyRequest request = new BuyRequest(credits);
 			out.writeObject(request);
 			out.flush();
 
-			Object response = null;
+			Object response;
 			try {
 				response = in.readObject();
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
+				return null;
 			}
 
-			if (response instanceof BuyResponse) {
-				return (BuyResponse) response;
+			if (response instanceof Response) {
+				return (Response) response;
 			}
 
 			return null;
@@ -128,36 +120,24 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response list() throws IOException {
-			if (!checkLoginStatus())
-				return null;
-
 			return null;
 		}
 
 		@Override
 		@Command
 		public Response download(String filename) throws IOException {
-			if (!checkLoginStatus())
-				return null;
-
 			return null;
 		}
 
 		@Override
 		@Command
 		public MessageResponse upload(String filename) throws IOException {
-			if (!checkLoginStatus())
-				return null;
-
 			return null;
 		}
 
 		@Override
 		@Command
 		public MessageResponse logout() throws IOException {
-			if (!checkLoginStatus())
-				return null;
-
 			return null;
 		}
 
@@ -166,13 +146,6 @@ public class ClientImpl {
 			shell.close();
 			System.in.close();
 			return null;
-		}
-
-		private boolean checkLoginStatus() throws IOException {
-			if (loggedIn) return true;
-
-			shell.writeLine("Please login first.");
-			return false;
 		}
 	}
 }

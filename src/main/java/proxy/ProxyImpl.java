@@ -59,9 +59,8 @@ public class ProxyImpl {
 	}
 
 	private static class TCPThread implements Runnable, IProxy {
-
 		private ServerSocket tcpSocket;
-		String user = "";
+		String user = null;
 
 		private TCPThread(ServerSocket tcpSocket) {
 			this.tcpSocket = tcpSocket;
@@ -88,16 +87,20 @@ public class ProxyImpl {
 
 					Response response;
 
-					if (request instanceof LoginRequest) {
-						response = login((LoginRequest) request);
-					} else if (request instanceof CreditsRequest) {
-						response = credits();
-					} else if (request instanceof BuyRequest) {
-						response = buy((BuyRequest) request);
-					} else if (request instanceof Request) {
-						response = new MessageResponse("Unsupported Request: " + request.getClass());
-					} else {
-						response = new MessageResponse("Got a non-request object");
+					try {
+						if (request instanceof LoginRequest) {
+							response = login((LoginRequest) request);
+						} else if (request instanceof CreditsRequest) {
+							response = credits();
+						} else if (request instanceof BuyRequest) {
+							response = buy((BuyRequest) request);
+						} else if (request instanceof Request) {
+							response = new MessageResponse("Unsupported Request: " + request.getClass());
+						} else {
+							response = new MessageResponse("Got a non-request object");
+						}
+					} catch (NotLoggedInException unused) {
+						response = new MessageResponse("Please login first");
 					}
 
 					out.writeObject(response);
@@ -130,6 +133,8 @@ public class ProxyImpl {
 
 		@Override
 		public Response credits() throws IOException {
+			checkLoginStatus();
+
 			int credits;
 			synchronized (creditList) {
 				credits = creditList.get(user);
@@ -139,6 +144,8 @@ public class ProxyImpl {
 
 		@Override
 		public Response buy(BuyRequest credits) throws IOException {
+			checkLoginStatus();
+
 			int userCredits;
 			long creditsToBeBought = Math.max(0, credits.getCredits());
 			synchronized (creditList) {
@@ -167,6 +174,15 @@ public class ProxyImpl {
 		@Override
 		public MessageResponse logout() throws IOException {
 			return null;  //To change body of implemented methods use File | Settings | File Templates.
+		}
+
+		private void checkLoginStatus() throws NotLoggedInException {
+			if (user == null) {
+				throw new NotLoggedInException();
+			}
+		}
+
+		private class NotLoggedInException extends IOException {
 		}
 	}
 
