@@ -170,7 +170,10 @@ class ClientThread implements Runnable, IProxy {
 
 	@Override
 	public MessageResponse logout() throws IOException {
-		MessageResponse response = new MessageResponse("Logged out " + user);
+		MessageResponse response = new MessageResponse("Successfully logged out. User was " + user);
+		synchronized (onlineList) {
+			onlineList.get(user).remove(this);
+		}
 		user = null;
 		return response;
 	}
