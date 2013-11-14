@@ -3,14 +3,19 @@ package server;
 import message.Request;
 import message.Response;
 import message.request.*;
+import message.response.DownloadFileResponse;
+import message.response.InfoResponse;
 import message.response.ListResponse;
 import message.response.MessageResponse;
+import model.DownloadTicket;
+import util.ChecksumUtils;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.HashSet;
+import java.util.Scanner;
 import java.util.Set;
 
 public class ClientThread implements Runnable, IFileServer {
@@ -49,6 +54,10 @@ public class ClientThread implements Runnable, IFileServer {
 					response = list();
 				} else if (request instanceof UploadRequest) {
 					response = upload((UploadRequest) request);
+				} else if (request instanceof InfoRequest) {
+					response = info((InfoRequest) request);
+				} else if (request instanceof DownloadFileRequest) {
+					response = download((DownloadFileRequest) request);
 				} else if (request instanceof Request) {
 					response = new MessageResponse("Unsupported Request: " + request.getClass());
 				} else {
@@ -92,15 +101,29 @@ public class ClientThread implements Runnable, IFileServer {
 
 	@Override
 	public Response download(DownloadFileRequest request) throws IOException {
-		return null;  //To change body of implemented methods use File | Settings | File Templates.
+		DownloadTicket ticket = request.getTicket();
+		File file = new File(dir + "/" + ticket.getFilename());
+		if (!file.exists() || !file.isFile()) {
+			return new MessageResponse("Requested file " + ticket.getFilename() + " does not exist");
+		}
+
+		boolean result = ChecksumUtils.verifyChecksum(ticket.getUsername(), file, 1, ticket.getChecksum());
+		if (!result) {
+			return new MessageResponse("Checksum Error");
+		}
+
+		String text = new Scanner(file).useDelimiter("\\A").next();
+		return new DownloadFileResponse(ticket, text.getBytes());
 	}
 
-	/**
-	 * @todo
-	 */
 	@Override
 	public Response info(InfoRequest request) throws IOException {
-		return new MessageResponse("Method info not implemented");
+		File file = new File(dir + "/" + request.getFilename());
+		if (!file.exists() || !file.isFile()) {
+			return new MessageResponse("Requested file " + request.getFilename() + " does not exist");
+		}
+
+		return new InfoResponse(request.getFilename(), file.length());
 	}
 
 	/**
@@ -120,8 +143,6 @@ public class ClientThread implements Runnable, IFileServer {
 		} finally {
 			if (writer != null) writer.close();
 		}
-
-		System.out.println(dir + "/" + request.getFilename());
 
 		return new MessageResponse("File written.");
 	}

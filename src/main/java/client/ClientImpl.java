@@ -5,11 +5,16 @@ import cli.Shell;
 import message.Request;
 import message.Response;
 import message.request.*;
+import message.response.DownloadFileResponse;
+import message.response.DownloadTicketResponse;
 import message.response.LoginResponse;
 import message.response.MessageResponse;
+import model.DownloadTicket;
+import ownModel.FileServerInfo;
 import util.Config;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.MissingResourceException;
@@ -112,7 +117,21 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response download(String filename) throws IOException {
-			return null;
+			sendRequest(new DownloadTicketRequest(filename));
+			Response response = recvResponse();
+			if (response instanceof MessageResponse) return response;
+			if (!(response instanceof DownloadTicketResponse)) return null;
+
+			DownloadTicket ticket = ((DownloadTicketResponse) response).getTicket();
+			response = fileServerRequest(new DownloadFileRequest(ticket), ticket.getAddress(), ticket.getPort());
+			if (response instanceof MessageResponse) return response;
+			if (!(response instanceof DownloadFileResponse)) return null;
+			byte[] data = ((DownloadFileResponse) response).getContent();
+
+			BufferedWriter writer = new BufferedWriter(new FileWriter(downloadDir + "/" + filename));
+			writer.write(new String(data));
+			writer.close();
+			return new MessageResponse("File successfully downloaded");
 		}
 
 		@Override
@@ -179,5 +198,35 @@ public class ClientImpl {
 				return new MessageResponse("Got an invalid response from the Proxy: " + e.getMessage());
 			}
 		}
+
+		/**
+		 * @todo generalize this with proxy/ClientThred
+		 */
+		private Response fileServerRequest(Request request, InetAddress host, int port) throws IOException {
+			Socket socket = new Socket(host, port);
+			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+			out.flush();
+			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+			out.writeObject(request);
+			out.flush();
+
+			Object response;
+			try {
+				response = in.readObject();
+			} catch (ClassNotFoundException e) {
+				return new MessageResponse("Unknown class: " + e.getMessage());
+			} finally {
+				out.close();
+				in.close();
+			}
+
+			if (!(response instanceof Response)) {
+				return new MessageResponse("Unknown object: " + response.getClass());
+			}
+
+			return (Response) response;
+		}
+
 	}
 }

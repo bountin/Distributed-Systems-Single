@@ -3,10 +3,8 @@ package proxy;
 import message.Request;
 import message.Response;
 import message.request.*;
-import message.response.BuyResponse;
-import message.response.CreditsResponse;
-import message.response.LoginResponse;
-import message.response.MessageResponse;
+import message.response.*;
+import model.DownloadTicket;
 import ownModel.FileServerId;
 import ownModel.FileServerInfo;
 
@@ -14,12 +12,15 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+
+import static util.ChecksumUtils.generateChecksum;
 
 class ClientThread implements Runnable, IProxy {
 	private ServerSocket tcpSocket;
@@ -178,7 +179,30 @@ class ClientThread implements Runnable, IProxy {
 	@Override
 	public Response download(DownloadTicketRequest request) throws IOException {
 		checkLoginStatus();
-		return null;
+		Response response = fileServerRequest(new InfoRequest(request.getFilename()));
+		if (response instanceof MessageResponse) {
+			return response;
+		} else if (!(response instanceof InfoResponse)) {
+			return new MessageResponse("Got invalid answer from File Server: " + response.toString());
+		}
+
+		InfoResponse info = (InfoResponse) response;
+		Integer credits = creditList.get(user);
+		if (info.getSize() > credits) {
+			return new MessageResponse("User " + user + " does not have enough credits left\nNeeded: " + info.getSize() + "\nAvailable: "+credits);
+		}
+		FileServerInfo serverInfo;
+		try {
+			serverInfo = chooseFileServer();
+		} catch (NoFileServerPresentException e) {
+			return new MessageResponse("No FileServer available");
+		}
+
+		creditList.put(user, credits - (int)info.getSize());
+
+		String checksum = generateChecksum(user, info.getFilename(), 1, info.getSize());
+		DownloadTicket ticket = new DownloadTicket(user, info.getFilename(), checksum, InetAddress.getByName(serverInfo.getId().getHost()), serverInfo.getId().getPort());
+		return new DownloadTicketResponse(ticket);
 	}
 
 	@Override
@@ -219,6 +243,9 @@ class ClientThread implements Runnable, IProxy {
 		return fileServerRequest(request, serverInfo);
 	}
 
+	/**
+	 * @todo generalize this with ClientImpl
+	 */
 	private Response fileServerRequest(Request request, FileServerInfo serverInfo) throws IOException {
 		Socket socket = new Socket(serverInfo.getId().getHost(), serverInfo.getId().getPort());
 		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
