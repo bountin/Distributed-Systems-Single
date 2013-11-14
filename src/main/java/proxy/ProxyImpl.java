@@ -73,7 +73,13 @@ public class ProxyImpl {
 		@Override
 		@Command
 		public Response fileservers() throws IOException {
-			return null;  //To change body of implemented methods use File | Settings | File Templates.
+			StringBuilder message = new StringBuilder();
+			for (FileServerInfo info: fileServerList.values()) {
+				message.append(info.getId().getHost() + ":" + info.getId().getPort() + " " + (info.isOnline()?"online":"offline") + " Usage: " + info.getUsage());
+				message.append('\n');
+			}
+
+			return new MessageResponse(message.toString());
 		}
 
 		@Override
