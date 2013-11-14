@@ -62,6 +62,8 @@ class ClientThread implements Runnable, IProxy {
 						response = credits();
 					} else if (request instanceof BuyRequest) {
 						response = buy((BuyRequest) request);
+					} else if (request instanceof LogoutRequest) {
+						response = logout();
 					} else if (request instanceof Request) {
 						response = new MessageResponse("Unsupported Request: " + request.getClass());
 					} else {
