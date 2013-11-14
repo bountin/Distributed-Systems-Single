@@ -131,7 +131,7 @@ public class ClientImpl {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(downloadDir + "/" + filename));
 			writer.write(new String(data));
 			writer.close();
-			return new MessageResponse("File successfully downloaded");
+			return response;
 		}
 
 		@Override
