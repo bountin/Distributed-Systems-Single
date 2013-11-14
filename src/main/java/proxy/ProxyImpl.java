@@ -27,6 +27,7 @@ public class ProxyImpl {
 	private ServerSocket tcpSocket;
 	private DatagramSocket udpSocket;
 	private AliveReceivingTask aliveReceivingTask;
+	private AliveGarbageCollectionTask aliveGCTask;
 
 	public ProxyImpl(Shell shell, Config config) {
 		this.shell = shell;
@@ -68,6 +69,8 @@ public class ProxyImpl {
 
 		udpSocket = new DatagramSocket(portUDP);
 		aliveReceivingTask = AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);
+
+		aliveGCTask = AliveGarbageCollectionTask.init(checkPeriod, fileServerList, timeout);
 
 		ProxyCommands proxyCommands = new ProxyCommands();
 		shell.register(proxyCommands);
@@ -125,6 +128,7 @@ public class ProxyImpl {
 			}
 
 			aliveReceivingTask.stop();
+			aliveGCTask.stop();
 			tcpSocket.close();
 			udpSocket.close();
 			shell.close();

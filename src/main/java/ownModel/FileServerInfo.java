@@ -31,4 +31,12 @@ public class FileServerInfo {
 	public void bumpLastSeen() {
 		lastSeen = System.currentTimeMillis();
 	}
+
+	public void setOffline() {
+		online = false;
+	}
+
+	public void setOnline() {
+		online = true;
+	}
 }
