@@ -1,8 +1,11 @@
 package util;
 
 import cli.Shell;
+import client.ClientImpl;
 import client.IClientCli;
 import proxy.IProxyCli;
+import proxy.ProxyImpl;
+import server.FileServerImpl;
 import server.IFileServerCli;
 
 /**
@@ -18,8 +21,8 @@ public class ComponentFactory {
 	 * @throws Exception if an exception occurs
 	 */
 	public IClientCli startClient(Config config, Shell shell) throws Exception {
-		// TODO: create a new client instance (including a Shell) and start it
-		return null;
+		ClientImpl client = new ClientImpl(shell, config);
+		return client.start();
 	}
 
 	/**
@@ -31,8 +34,8 @@ public class ComponentFactory {
 	 * @throws Exception if an exception occurs
 	 */
 	public IProxyCli startProxy(Config config, Shell shell) throws Exception {
-		// TODO: create a new proxy instance (including a Shell) and start it
-		return null;
+		ProxyImpl proxy = new ProxyImpl(shell, config);
+		return proxy.start();
 	}
 
 	/**
@@ -44,7 +47,7 @@ public class ComponentFactory {
 	 * @throws Exception if an exception occurs
 	 */
 	public IFileServerCli startFileServer(Config config, Shell shell) throws Exception {
-		// TODO: create a new file server instance (including a Shell) and start it
-		return null;
+		FileServerImpl fs = new FileServerImpl(shell, config);
+		return fs.start();
 	}
 }

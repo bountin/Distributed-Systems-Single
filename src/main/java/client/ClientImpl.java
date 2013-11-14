@@ -21,27 +21,41 @@ import java.net.SocketException;
 import java.util.MissingResourceException;
 
 public class ClientImpl {
-	private static Shell shell;
-	private static String host;
-	private static String downloadDir;
-	private static int port;
+	private Shell shell;
+	private Config config;
+	private ClientCommands commands;
 
-	private static ObjectOutputStream out;
-	private static ObjectInputStream in;
+	private String host;
+	private String downloadDir;
+	private int port;
 
-	private static boolean loggedIn = false;
+	private ObjectOutputStream out;
+	private ObjectInputStream in;
+
+	private boolean loggedIn = false;
+
+	public ClientImpl(Shell shell, Config config) {
+		this.shell = shell;
+		this.config = config;
+	}
 
 	public static void main(String[] args) throws IOException {
 		Config config = new Config("client");
+		Shell shell = new Shell("Client", System.out, System.in);
 
+		ClientImpl client = new ClientImpl(shell, config);
+		client.start();
+		shell.run();
+	}
+
+	public IClientCli start() throws IOException {
 		try {
 			downloadDir = config.getString("download.dir");
 			host = config.getString("proxy.host");
 			port = config.getInt("proxy.tcp.port");
 		} catch (MissingResourceException e) {
-			System.out.println("A configuration parameter is missing: " + e.getMessage());
-			System.exit(1);
-			return;
+			shell.writeLine("A configuration parameter is missing: " + e.getMessage());
+			stop();
 		}
 
 		Socket socket = new Socket((String) null, port);
@@ -49,18 +63,18 @@ public class ClientImpl {
 		out.flush();
 		in = new ObjectInputStream(socket.getInputStream());
 
-		shell = new Shell("Client", System.out, System.in);
-		shell.register(new ClientCommands());
-		shell.run();
+		commands = new ClientCommands();
+		shell.register(commands);
+
+		return commands;
 	}
 
-	private static void stop() throws IOException {
+	private void stop() throws IOException {
 		shell.close();
 		System.in.close();
-		System.exit(0);
 	}
 
-	static class ClientCommands implements IClientCli {
+	class ClientCommands implements IClientCli {
 		@Override
 		@Command
 		public LoginResponse login(String username, String password) throws IOException {

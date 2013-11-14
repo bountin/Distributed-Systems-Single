@@ -1,17 +1,25 @@
 package server;
 
+import cli.Command;
+import cli.Shell;
+import message.response.MessageResponse;
 import util.Config;
 
+import java.io.IOException;
 import java.util.MissingResourceException;
 import java.util.Timer;
 
 public class FileServerImpl {
 
-	public static void main(String[] args) {
-		assert args.length >= 1: "Gimme config";
+	private Shell shell;
+	private Config config;
 
-		Config config = new Config(args[0]);
+	public FileServerImpl(Shell shell, Config config) {
+		this.shell = shell;
+		this.config = config;
+	}
 
+	public IFileServerCli start() {
 		String dir, proxyHost;
 		int port, proxyPort, aliveInterval;
 
@@ -24,11 +32,41 @@ public class FileServerImpl {
 		} catch (MissingResourceException e) {
 			System.out.println("A configuration parameter is missing: " + e.getMessage());
 			System.exit(1);
-			return;
+			return null;
 		}
 
 		AliveTask task = new AliveTask(proxyHost, proxyPort, port);
 		Timer timer = new Timer("alive");
 		timer.schedule(task, 0, aliveInterval);
+
+		FileServerCommands fileServerCommands = new FileServerCommands();
+		shell.register(fileServerCommands);
+
+		return fileServerCommands;
+	}
+
+	public static void main(String[] args) {
+		assert args.length >= 1: "Gimme config";
+		Config config = new Config(args[0]);
+
+		Shell shell = new Shell("FS", System.out, System.in);
+
+		FileServerImpl fs = new FileServerImpl(shell, config);
+		fs.start();
+		shell.run();
+	}
+
+	private void stop() throws IOException {
+		shell.close();
+		System.in.close();
+	}
+
+	private class FileServerCommands implements IFileServerCli {
+		@Override
+		@Command
+		public MessageResponse exit() throws IOException {
+			stop();
+			return new MessageResponse("FileServer shutting down");
+		}
 	}
 }

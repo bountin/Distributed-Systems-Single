@@ -15,20 +15,25 @@ import java.net.ServerSocket;
 import java.util.*;
 
 public class ProxyImpl {
+	private Shell shell;
+	private Config config;
 
-	static final HashMap<String, Integer> creditList   = new HashMap<>();
-	static final HashMap<String, String>  passwordList = new HashMap<>();
-	static final HashMap<String, ArrayList<ClientThread>> onlineList = new HashMap<>();
-	static final ArrayList<ObjectOutputStream> streamList = new ArrayList<>();
-	static final HashMap<FileServerId, FileServerInfo> fileServerList = new HashMap<>();
+	final HashMap<String, Integer> creditList   = new HashMap<String, Integer>();
+	final HashMap<String, String>  passwordList = new HashMap<String, String>();
+	final HashMap<String, ArrayList<ClientThread>> onlineList = new HashMap<String, ArrayList<ClientThread>>();
+	final ArrayList<ObjectOutputStream> streamList = new ArrayList<ObjectOutputStream>();
+	final HashMap<FileServerId, FileServerInfo> fileServerList = new HashMap<FileServerId, FileServerInfo>();
 
-	private static Shell shell;
-	private static ServerSocket tcpSocket;
-	private static DatagramSocket udpSocket;
+	private ServerSocket tcpSocket;
+	private DatagramSocket udpSocket;
+	private AliveReceivingTask aliveReceivingTask;
 
-	public static void main(String[] args) throws IOException {
-		Config config = new Config("proxy");
+	public ProxyImpl(Shell shell, Config config) {
+		this.shell = shell;
+		this.config = config;
+	}
 
+	public IProxyCli start() throws IOException {
 		int portTCP, portUDP, timeout, checkPeriod;
 
 		try {
@@ -39,7 +44,7 @@ public class ProxyImpl {
 		} catch (MissingResourceException e) {
 			System.out.println("A configuration parameter is missing: " + e.getMessage());
 			System.exit(1);
-			return;
+			return null;
 		}
 
 		Config userConfig = new Config("user");
@@ -62,14 +67,24 @@ public class ProxyImpl {
 		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList);
 
 		udpSocket = new DatagramSocket(portUDP);
-		AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);
+		aliveReceivingTask = AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);
 
-		shell = new Shell("Client", System.out, System.in);
-		shell.register(new ProxyCommands());
+		ProxyCommands proxyCommands = new ProxyCommands();
+		shell.register(proxyCommands);
+
+		return proxyCommands;
+	}
+
+	public static void main(String[] args) throws IOException {
+		Config config = new Config("proxy");
+		Shell shell = new Shell("Client", System.out, System.in);
+
+		ProxyImpl proxy = new ProxyImpl(shell, config);
+		proxy.start();
 		shell.run();
 	}
 
-	private static class ProxyCommands implements IProxyCli {
+	private class ProxyCommands implements IProxyCli {
 		@Override
 		@Command
 		public Response fileservers() throws IOException {
@@ -109,7 +124,9 @@ public class ProxyImpl {
 				stream.close();
 			}
 
+			aliveReceivingTask.stop();
 			tcpSocket.close();
+			udpSocket.close();
 			shell.close();
 			System.in.close();
 			return new MessageResponse("Proxy stopping");
