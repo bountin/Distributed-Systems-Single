@@ -4,21 +4,16 @@ import cli.Command;
 import cli.Shell;
 import message.Request;
 import message.Response;
-import message.request.BuyRequest;
-import message.request.CreditsRequest;
-import message.request.LoginRequest;
-import message.request.LogoutRequest;
+import message.request.*;
 import message.response.LoginResponse;
 import message.response.MessageResponse;
 import util.Config;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.MissingResourceException;
+import java.util.Scanner;
 
 public class ClientImpl {
 	private Shell shell;
@@ -110,7 +105,8 @@ public class ClientImpl {
 		@Override
 		@Command
 		public Response list() throws IOException {
-			return null;
+			sendRequest(new ListRequest());
+			return recvResponse();
 		}
 
 		@Override
@@ -122,7 +118,16 @@ public class ClientImpl {
 		@Override
 		@Command
 		public MessageResponse upload(String filename) throws IOException {
-			return null;
+			String text = new Scanner(new File(downloadDir + "/" + filename)).useDelimiter("\\A").next();
+			UploadRequest request = new UploadRequest(filename, 0, text.getBytes());
+			sendRequest(request);
+
+			Response response = recvResponse();
+			if (response instanceof MessageResponse) {
+				return (MessageResponse) response;
+			} else {
+				return null;
+			}
 		}
 
 		@Override

@@ -65,7 +65,7 @@ public class ProxyImpl {
 		}
 
 		tcpSocket = new ServerSocket(portTCP);
-		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList);
+		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList, fileServerList);
 
 		udpSocket = new DatagramSocket(portUDP);
 		aliveReceivingTask = AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);

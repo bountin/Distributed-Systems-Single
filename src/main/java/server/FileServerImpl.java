@@ -6,6 +6,7 @@ import message.response.MessageResponse;
 import util.Config;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.MissingResourceException;
 import java.util.Timer;
 
@@ -14,14 +15,16 @@ public class FileServerImpl {
 	private Shell shell;
 	private Config config;
 
-	Timer timer;
+	private Timer timer;
+
+	private ServerSocket socket;
 
 	public FileServerImpl(Shell shell, Config config) {
 		this.shell = shell;
 		this.config = config;
 	}
 
-	public IFileServerCli start() {
+	public IFileServerCli start() throws IOException {
 		String dir, proxyHost;
 		int port, proxyPort, aliveInterval;
 
@@ -37,6 +40,9 @@ public class FileServerImpl {
 			return null;
 		}
 
+		socket = new ServerSocket(port);
+		ClientThread.initNewThread(socket, dir);
+
 		AliveTask task = new AliveTask(proxyHost, proxyPort, port);
 		timer = new Timer("alive");
 		timer.schedule(task, 0, aliveInterval);
@@ -47,7 +53,7 @@ public class FileServerImpl {
 		return fileServerCommands;
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		assert args.length >= 1: "Gimme config";
 		Config config = new Config(args[0]);
 
