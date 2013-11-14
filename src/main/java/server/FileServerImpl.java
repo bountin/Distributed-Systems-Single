@@ -2,6 +2,7 @@ package server;
 
 import cli.Command;
 import cli.Shell;
+import cli.ShellThread;
 import message.response.MessageResponse;
 import util.Config;
 
@@ -49,7 +50,7 @@ public class FileServerImpl {
 
 		FileServerCommands fileServerCommands = new FileServerCommands();
 		shell.register(fileServerCommands);
-
+		ShellThread.initNewThread(shell);
 		return fileServerCommands;
 	}
 
@@ -61,7 +62,6 @@ public class FileServerImpl {
 
 		FileServerImpl fs = new FileServerImpl(shell, config);
 		fs.start();
-		shell.run();
 	}
 
 	private void stop() throws IOException {

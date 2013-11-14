@@ -2,6 +2,7 @@ package proxy;
 
 import cli.Command;
 import cli.Shell;
+import cli.ShellThread;
 import message.Response;
 import message.response.MessageResponse;
 import ownModel.FileServerId;
@@ -74,7 +75,7 @@ public class ProxyImpl {
 
 		ProxyCommands proxyCommands = new ProxyCommands();
 		shell.register(proxyCommands);
-
+		ShellThread.initNewThread(shell);
 		return proxyCommands;
 	}
 
@@ -84,7 +85,6 @@ public class ProxyImpl {
 
 		ProxyImpl proxy = new ProxyImpl(shell, config);
 		proxy.start();
-		shell.run();
 	}
 
 	private class ProxyCommands implements IProxyCli {

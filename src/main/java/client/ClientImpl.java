@@ -2,6 +2,7 @@ package client;
 
 import cli.Command;
 import cli.Shell;
+import cli.ShellThread;
 import message.Request;
 import message.Response;
 import message.request.*;
@@ -45,7 +46,6 @@ public class ClientImpl {
 
 		ClientImpl client = new ClientImpl(shell, config);
 		client.start();
-		shell.run();
 	}
 
 	public IClientCli start() throws IOException {
@@ -65,7 +65,7 @@ public class ClientImpl {
 
 		commands = new ClientCommands();
 		shell.register(commands);
-
+		ShellThread.initNewThread(shell);
 		return commands;
 	}
 
