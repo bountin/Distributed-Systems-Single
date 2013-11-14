@@ -17,6 +17,7 @@ public class FileServerImpl {
 	private Config config;
 
 	private Timer timer;
+	private ServerSocket socket;
 
 	public FileServerImpl(Shell shell, Config config) {
 		this.shell = shell;
@@ -39,7 +40,7 @@ public class FileServerImpl {
 			return null;
 		}
 
-		ServerSocket socket = new ServerSocket(port);
+		socket = new ServerSocket(port);
 		ClientThread.initNewThread(socket, dir);
 
 		AliveTask task = new AliveTask(proxyHost, proxyPort, port);
@@ -63,6 +64,7 @@ public class FileServerImpl {
 	}
 
 	private void stop() throws IOException {
+		socket.close();
 		timer.cancel();
 		shell.close();
 		System.in.close();
