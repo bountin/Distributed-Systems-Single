@@ -14,6 +14,8 @@ public class FileServerImpl {
 	private Shell shell;
 	private Config config;
 
+	Timer timer;
+
 	public FileServerImpl(Shell shell, Config config) {
 		this.shell = shell;
 		this.config = config;
@@ -36,7 +38,7 @@ public class FileServerImpl {
 		}
 
 		AliveTask task = new AliveTask(proxyHost, proxyPort, port);
-		Timer timer = new Timer("alive");
+		timer = new Timer("alive");
 		timer.schedule(task, 0, aliveInterval);
 
 		FileServerCommands fileServerCommands = new FileServerCommands();
@@ -57,6 +59,7 @@ public class FileServerImpl {
 	}
 
 	private void stop() throws IOException {
+		timer.cancel();
 		shell.close();
 		System.in.close();
 	}
