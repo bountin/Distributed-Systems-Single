@@ -216,6 +216,9 @@ class ClientThread implements Runnable, IProxy {
 			creditList.put(user, credits - (int)info.getSize());
 		}
 
+		// Increase FS's usage
+		serverInfo.incUsage(info.getSize());
+
 		String checksum = generateChecksum(user, info.getFilename(), 1, info.getSize());
 		DownloadTicket ticket = new DownloadTicket(user, info.getFilename(), checksum, InetAddress.getByName(serverInfo.getId().getHost()), serverInfo.getId().getPort());
 		return new DownloadTicketResponse(ticket);

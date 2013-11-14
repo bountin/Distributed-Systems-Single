@@ -39,4 +39,8 @@ public class FileServerInfo {
 	public void setOnline() {
 		online = true;
 	}
+
+	synchronized public void incUsage(long size) {
+		this.usage += size;
+	}
 }
