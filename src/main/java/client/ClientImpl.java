@@ -190,6 +190,10 @@ public class ClientImpl {
 				}
 
 				return (Response) object;
+			} catch (SocketException e) {
+				shell.writeLine("Lost connection to Proxy");
+				stop();
+				return null;
 			} catch (EOFException e) {
 				shell.writeLine("Lost connection to Proxy");
 				stop();
