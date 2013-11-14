@@ -49,6 +49,23 @@ public class ProxyImpl {
 			return null;
 		}
 
+		loadUsers();
+
+		tcpSocket = new ServerSocket(portTCP);
+		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList, fileServerList);
+
+		udpSocket = new DatagramSocket(portUDP);
+		aliveReceivingTask = AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);
+
+		aliveGCTask = AliveGarbageCollectionTask.init(checkPeriod, fileServerList, timeout);
+
+		ProxyCommands proxyCommands = new ProxyCommands();
+		shell.register(proxyCommands);
+		ShellThread.initNewThread(shell);
+		return proxyCommands;
+	}
+
+	private void loadUsers() {
 		Config userConfig = new Config("user");
 		Enumeration<String> users = ResourceBundle.getBundle("user").getKeys();
 
@@ -65,18 +82,22 @@ public class ProxyImpl {
 			}
 		}
 
-		tcpSocket = new ServerSocket(portTCP);
-		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList, fileServerList);
-
-		udpSocket = new DatagramSocket(portUDP);
-		aliveReceivingTask = AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);
-
-		aliveGCTask = AliveGarbageCollectionTask.init(checkPeriod, fileServerList, timeout);
-
-		ProxyCommands proxyCommands = new ProxyCommands();
-		shell.register(proxyCommands);
-		ShellThread.initNewThread(shell);
-		return proxyCommands;
+		// Filter inconsistent data (credit without password and vice-versa)
+		Iterator<String> iterator;
+		iterator = creditList.keySet().iterator();
+		while (iterator.hasNext()) {
+			String user = iterator.next();
+			if (! passwordList.containsKey(user)) {
+				iterator.remove();
+			}
+		}
+		iterator = passwordList.keySet().iterator();
+		while (iterator.hasNext()) {
+			String user = iterator.next();
+			if (! creditList.containsKey(user)) {
+				iterator.remove();
+			}
+		}
 	}
 
 	public static void main(String[] args) throws IOException {
