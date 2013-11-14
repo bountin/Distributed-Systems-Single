@@ -18,8 +18,6 @@ public class FileServerImpl {
 
 	private Timer timer;
 
-	private ServerSocket socket;
-
 	public FileServerImpl(Shell shell, Config config) {
 		this.shell = shell;
 		this.config = config;
@@ -41,7 +39,7 @@ public class FileServerImpl {
 			return null;
 		}
 
-		socket = new ServerSocket(port);
+		ServerSocket socket = new ServerSocket(port);
 		ClientThread.initNewThread(socket, dir);
 
 		AliveTask task = new AliveTask(proxyHost, proxyPort, port);
@@ -55,9 +53,9 @@ public class FileServerImpl {
 	}
 
 	public static void main(String[] args) throws IOException {
-		assert args.length >= 1: "Gimme config";
-		Config config = new Config(args[0]);
+		assert args.length >= 1: "Please give me a config ressource name as first parameter";
 
+		Config config = new Config(args[0]);
 		Shell shell = new Shell("FS", System.out, System.in);
 
 		FileServerImpl fs = new FileServerImpl(shell, config);

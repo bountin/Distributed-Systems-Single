@@ -61,11 +61,13 @@ public class AliveReceivingTask extends TimerTask {
 
 		FileServerId id = new FileServerId(host, port);
 
-		if (fileServerList.containsKey(id)) {
-			fileServerList.get(id).bumpLastSeen();
-		} else {
-			FileServerInfo info = new FileServerInfo(id, true, 0);
-			fileServerList.put(id, info);
+		synchronized (fileServerList) {
+			if (fileServerList.containsKey(id)) {
+				fileServerList.get(id).bumpLastSeen();
+			} else {
+				FileServerInfo info = new FileServerInfo(id, true, 0);
+				fileServerList.put(id, info);
+			}
 		}
 	}
 

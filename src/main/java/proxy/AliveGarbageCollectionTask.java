@@ -3,6 +3,7 @@ package proxy;
 import ownModel.FileServerId;
 import ownModel.FileServerInfo;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -20,7 +21,12 @@ public class AliveGarbageCollectionTask extends TimerTask {
 
 	@Override
 	public void run() {
-		for (FileServerInfo info: fileServerList.values()) {
+		Collection<FileServerInfo> serverInfos;
+		synchronized (fileServerList) {
+			serverInfos = fileServerList.values();
+		}
+
+		for (FileServerInfo info: serverInfos) {
 			long gateTimeStamp = System.currentTimeMillis() - timeout;
 			if (info.getLastSeen() < gateTimeStamp) {
 				info.setOffline();

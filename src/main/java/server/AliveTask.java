@@ -6,9 +6,9 @@ import java.nio.ByteBuffer;
 import java.util.TimerTask;
 
 public class AliveTask extends TimerTask{
-	private String proxyHost;
-	private int proxyPort;
-	private int port;
+	private final String proxyHost;
+	private final int proxyPort;
+	private final int port;
 
 	public AliveTask(String proxyHost, int proxyPort, int port) {
 		this.proxyHost = proxyHost;
@@ -20,14 +20,16 @@ public class AliveTask extends TimerTask{
 		byte[] portEncoded = ByteBuffer.allocate(4).putInt(port).array();
 		DatagramPacket packet = new DatagramPacket(portEncoded, 4);
 
+		DatagramSocket udp = null;
 		try {
-			DatagramSocket udp;
 			udp = new DatagramSocket();
 			udp.connect(InetAddress.getByName(proxyHost), proxyPort);
 			udp.send(packet);
 		} catch (IOException e) {
 			System.out.println("Sending alive package failed: " + e.getMessage());
 			e.printStackTrace();
+		} finally {
+			if (udp != null) udp.close();
 		}
 	}
 }

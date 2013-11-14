@@ -53,40 +53,14 @@ class ClientThread implements Runnable, IProxy {
 			initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList, fileServerList);
 
 			out = new ObjectOutputStream(socket.getOutputStream());
-			streamList.add(out);
+			synchronized (streamList) {
+				streamList.add(out);
+			}
 			out.flush();
 			in = new ObjectInputStream(socket.getInputStream());
 
 			while (true) {
-				Object request = in.readObject();
-				Response response;
-
-				try {
-					if (request instanceof LoginRequest) {
-						response = login((LoginRequest) request);
-					} else if (request instanceof CreditsRequest) {
-						response = credits();
-					} else if (request instanceof BuyRequest) {
-						response = buy((BuyRequest) request);
-					} else if (request instanceof LogoutRequest) {
-						response = logout();
-					} else if (request instanceof DownloadTicketRequest) {
-						response = download((DownloadTicketRequest) request);
-					} else if (request instanceof ListRequest) {
-						response = list();
-					} else if (request instanceof UploadRequest) {
-						response = upload((UploadRequest) request);
-					} else if (request instanceof Request) {
-						response = new MessageResponse("Unsupported Request: " + request.getClass());
-					} else {
-						response = new MessageResponse("Got a non-request object");
-					}
-				} catch (NotLoggedInException unused) {
-					response = new MessageResponse("Please login first");
-				}
-
-				out.writeObject(response);
-				out.flush();
+				handleRequestLoop(out, in);
 			}
 		} catch (EOFException ignored) {
 			// Client aborted connection
@@ -115,20 +89,55 @@ class ClientThread implements Runnable, IProxy {
 		}
 	}
 
+	private void handleRequestLoop(ObjectOutputStream out, ObjectInputStream in) throws IOException, ClassNotFoundException {
+		Object request = in.readObject();
+		Response response;
+
+		try {
+			if (request instanceof LoginRequest) {
+				response = login((LoginRequest) request);
+			} else if (request instanceof CreditsRequest) {
+				response = credits();
+			} else if (request instanceof BuyRequest) {
+				response = buy((BuyRequest) request);
+			} else if (request instanceof LogoutRequest) {
+				response = logout();
+			} else if (request instanceof DownloadTicketRequest) {
+				response = download((DownloadTicketRequest) request);
+			} else if (request instanceof ListRequest) {
+				response = list();
+			} else if (request instanceof UploadRequest) {
+				response = upload((UploadRequest) request);
+			} else if (request instanceof Request) {
+				response = new MessageResponse("Unsupported Request: " + request.getClass());
+			} else {
+				response = new MessageResponse("Got a non-request object");
+			}
+		} catch (NotLoggedInException unused) {
+			response = new MessageResponse("Please login first");
+		}
+
+		out.writeObject(response);
+		out.flush();
+	}
+
 	@Override
 	public LoginResponse login(LoginRequest request) throws IOException {
 		// Check if user is known - The type enum does not support this so just write WRONG_CREDENTIALS
-		if (! passwordList.containsKey(request.getUsername())) {
-			return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
+		synchronized (passwordList) {
+			if (! passwordList.containsKey(request.getUsername())) {
+				return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
+			}
 		}
 
-		// Check if passwort is correct
-		if (! passwordList.get(request.getUsername()).equals(request.getPassword())) {
-			return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
+		synchronized (passwordList) {
+			// Check if passwort is correct
+			if (! passwordList.get(request.getUsername()).equals(request.getPassword())) {
+				return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
+			}
 		}
 
 		user = request.getUsername();
-
 		synchronized (onlineList) {
 			if (! onlineList.containsKey(user)) {
 				onlineList.put(user, new ArrayList<ClientThread>());
@@ -186,11 +195,7 @@ class ClientThread implements Runnable, IProxy {
 			return new MessageResponse("Got invalid answer from File Server: " + response.toString());
 		}
 
-		InfoResponse info = (InfoResponse) response;
-		Integer credits = creditList.get(user);
-		if (info.getSize() > credits) {
-			return new MessageResponse("User " + user + " does not have enough credits left\nNeeded: " + info.getSize() + "\nAvailable: "+credits);
-		}
+		// Choose a FS
 		FileServerInfo serverInfo;
 		try {
 			serverInfo = chooseFileServer();
@@ -198,7 +203,18 @@ class ClientThread implements Runnable, IProxy {
 			return new MessageResponse("No FileServer available");
 		}
 
-		creditList.put(user, credits - (int)info.getSize());
+		// Validate credits
+		InfoResponse info = (InfoResponse) response;
+		Integer credits;
+		synchronized (creditList) {
+			credits = creditList.get(user);
+
+			if (info.getSize() > credits) {
+				return new MessageResponse("User " + user + " does not have enough credits left\nNeeded: " + info.getSize() + "\nAvailable: "+credits);
+			}
+
+			creditList.put(user, credits - (int)info.getSize());
+		}
 
 		String checksum = generateChecksum(user, info.getFilename(), 1, info.getSize());
 		DownloadTicket ticket = new DownloadTicket(user, info.getFilename(), checksum, InetAddress.getByName(serverInfo.getId().getHost()), serverInfo.getId().getPort());
@@ -224,7 +240,10 @@ class ClientThread implements Runnable, IProxy {
 	}
 
 	private void fileServerBroadcast(Request request) throws IOException {
-		Collection<FileServerInfo> servers = fileServerList.values();
+		Collection<FileServerInfo> servers;
+		synchronized (fileServerList) {
+			servers = fileServerList.values();
+		}
 		for (FileServerInfo info: servers) {
 			if (info.isOnline()) {
 				fileServerRequest(request, info);
@@ -263,6 +282,7 @@ class ClientThread implements Runnable, IProxy {
 		} finally {
 			out.close();
 			in.close();
+			socket.close();
 		}
 
 		if (!(response instanceof Response)) {
@@ -273,7 +293,10 @@ class ClientThread implements Runnable, IProxy {
 	}
 
 	private FileServerInfo chooseFileServer() throws NoFileServerPresentException {
-		Collection<FileServerInfo> servers = fileServerList.values();
+		Collection<FileServerInfo> servers;
+		synchronized (fileServerList) {
+			servers = fileServerList.values();
+		}
 
 		// Look for the server with the smallest usage
 		FileServerInfo minUsageServer = null;

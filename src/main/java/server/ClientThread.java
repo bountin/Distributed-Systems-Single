@@ -16,7 +16,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.HashSet;
 import java.util.Scanner;
-import java.util.Set;
 
 public class ClientThread implements Runnable, IFileServer {
 
@@ -34,7 +33,7 @@ public class ClientThread implements Runnable, IFileServer {
 
 	@Override
 	public void run() {
-		Socket connection;
+		Socket connection = null;
 		ObjectOutputStream out = null;
 		ObjectInputStream in = null;
 		try {
@@ -42,30 +41,11 @@ public class ClientThread implements Runnable, IFileServer {
 			initNewThread(socket, dir);
 
 			out = new ObjectOutputStream(connection.getOutputStream());
-//			streamList.add(out);
 			out.flush();
 			in = new ObjectInputStream(connection.getInputStream());
 
 			while (true) {
-				Object request = in.readObject();
-				Response response;
-
-				if (request instanceof ListRequest) {
-					response = list();
-				} else if (request instanceof UploadRequest) {
-					response = upload((UploadRequest) request);
-				} else if (request instanceof InfoRequest) {
-					response = info((InfoRequest) request);
-				} else if (request instanceof DownloadFileRequest) {
-					response = download((DownloadFileRequest) request);
-				} else if (request instanceof Request) {
-					response = new MessageResponse("Unsupported Request: " + request.getClass());
-				} else {
-					response = new MessageResponse("Got a non-request object");
-				}
-
-				out.writeObject(response);
-				out.flush();
+				requestHandlingLoop(out, in);
 			}
 		} catch (EOFException ignored) {
 			// Client aborted connection
@@ -86,12 +66,43 @@ public class ClientThread implements Runnable, IFileServer {
 					out.close();
 				} catch (IOException ignored) {}
 			}
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (IOException ignored) {}
+			}
 		}
+	}
+
+	private void requestHandlingLoop(ObjectOutputStream out, ObjectInputStream in) throws IOException, ClassNotFoundException {
+		Object request = in.readObject();
+		Response response;
+
+		if (request instanceof ListRequest) {
+			response = list();
+		} else if (request instanceof UploadRequest) {
+			response = upload((UploadRequest) request);
+		} else if (request instanceof InfoRequest) {
+			response = info((InfoRequest) request);
+		} else if (request instanceof DownloadFileRequest) {
+			response = download((DownloadFileRequest) request);
+		} else if (request instanceof Request) {
+			response = new MessageResponse("Unsupported Request: " + request.getClass());
+		} else {
+			response = new MessageResponse("Got a non-request object");
+		}
+
+		out.writeObject(response);
+		out.flush();
 	}
 
 	@Override
 	public Response list() throws IOException {
 		File uploadDir = new File(dir);
+		if (!uploadDir.exists() || !uploadDir.isDirectory()) {
+			return new MessageResponse("FATAL: Upload directory does not exist");
+		}
+
 		HashSet<String> files = new HashSet<String>();
 		for (File file: uploadDir.listFiles()) {
 			files.add(file.getName());

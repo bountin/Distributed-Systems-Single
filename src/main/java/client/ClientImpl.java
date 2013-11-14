@@ -22,11 +22,9 @@ import java.util.MissingResourceException;
 import java.util.Scanner;
 
 public class ClientImpl {
-	private Shell shell;
-	private Config config;
-	private ClientCommands commands;
+	private final Shell shell;
+	private final Config config;
 
-	private String host;
 	private String downloadDir;
 	private int port;
 
@@ -49,6 +47,7 @@ public class ClientImpl {
 	}
 
 	public IClientCli start() throws IOException {
+		String host = null;
 		try {
 			downloadDir = config.getString("download.dir");
 			host = config.getString("proxy.host");
@@ -58,12 +57,12 @@ public class ClientImpl {
 			stop();
 		}
 
-		Socket socket = new Socket((String) null, port);
+		Socket socket = new Socket(host, port);
 		out = new ObjectOutputStream(socket.getOutputStream());
 		out.flush();
 		in = new ObjectInputStream(socket.getInputStream());
 
-		commands = new ClientCommands();
+		ClientCommands commands = new ClientCommands();
 		shell.register(commands);
 		ShellThread.initNewThread(shell);
 		return commands;

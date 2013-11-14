@@ -92,7 +92,11 @@ public class ProxyImpl {
 		@Command
 		public Response fileservers() throws IOException {
 			StringBuilder message = new StringBuilder();
-			for (FileServerInfo info: fileServerList.values()) {
+			Collection<FileServerInfo> serverInfos;
+			synchronized (fileServerList) {
+				serverInfos = fileServerList.values();
+			}
+			for (FileServerInfo info: serverInfos) {
 				message.append(info.getId().getHost() + ":" + info.getId().getPort() + " " + (info.isOnline()?"online":"offline") + " Usage: " + info.getUsage());
 				message.append('\n');
 			}
@@ -105,16 +109,26 @@ public class ProxyImpl {
 		public Response users() throws IOException {
 			StringBuilder message = new StringBuilder();
 
-			Set<String> users = creditList.keySet();
+			Set<String> users;
 
-			int i = 1;
-			for (String user: users) {
-				boolean online = false;
-				if (onlineList.containsKey(user) && onlineList.get(user).size() >= 1) {
-					online = true;
+			synchronized (onlineList) {
+				synchronized (creditList) {
+					users = creditList.keySet();
 				}
 
-				message.append(i++ + ". " + user + " " + (online ? "online" : "offline") + " Credits: " + creditList.get(user) + '\n');
+				int i = 1;
+				for (String user: users) {
+					boolean online = false;
+					if (onlineList.containsKey(user) && onlineList.get(user).size() >= 1) {
+						online = true;
+					}
+
+					Integer credits;
+					synchronized (creditList) {
+						credits = creditList.get(user);
+					}
+					message.append(i++ + ". " + user + " " + (online ? "online" : "offline") + " Credits: " + credits + '\n');
+				}
 			}
 
 			return new MessageResponse(message.toString());
