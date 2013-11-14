@@ -123,6 +123,11 @@ class ClientThread implements Runnable, IProxy {
 
 	@Override
 	public LoginResponse login(LoginRequest request) throws IOException {
+		// First check if the client is already logged in and log him out
+		if (user != null) {
+			this.logout();
+		}
+
 		// Check if user is known - The type enum does not support this so just write WRONG_CREDENTIALS
 		synchronized (passwordList) {
 			if (! passwordList.containsKey(request.getUsername())) {
