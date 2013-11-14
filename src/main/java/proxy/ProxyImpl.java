@@ -4,22 +4,27 @@ import cli.Command;
 import cli.Shell;
 import message.Response;
 import message.response.MessageResponse;
+import ownModel.FileServerId;
+import ownModel.FileServerInfo;
 import util.Config;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.util.*;
 
 public class ProxyImpl {
 
-	static final HashMap<String, Integer> creditList   = new HashMap<String, Integer>();
-	static final HashMap<String, String>  passwordList = new HashMap<String, String>();
-	static final HashMap<String, ArrayList<ClientThread>> onlineList = new HashMap<String, ArrayList<ClientThread>>();
-	static final ArrayList<ObjectOutputStream> streamList = new ArrayList<ObjectOutputStream>();
+	static final HashMap<String, Integer> creditList   = new HashMap<>();
+	static final HashMap<String, String>  passwordList = new HashMap<>();
+	static final HashMap<String, ArrayList<ClientThread>> onlineList = new HashMap<>();
+	static final ArrayList<ObjectOutputStream> streamList = new ArrayList<>();
+	static final HashMap<FileServerId, FileServerInfo> fileServerList = new HashMap<>();
 
 	private static Shell shell;
 	private static ServerSocket tcpSocket;
+	private static DatagramSocket udpSocket;
 
 	public static void main(String[] args) throws IOException {
 		Config config = new Config("proxy");
@@ -56,10 +61,12 @@ public class ProxyImpl {
 		tcpSocket = new ServerSocket(portTCP);
 		ClientThread.initNewThread(tcpSocket, creditList, passwordList, onlineList, streamList);
 
+		udpSocket = new DatagramSocket(portUDP);
+		AliveReceivingTask.init(udpSocket, checkPeriod, fileServerList);
+
 		shell = new Shell("Client", System.out, System.in);
 		shell.register(new ProxyCommands());
 		shell.run();
-
 	}
 
 	private static class ProxyCommands implements IProxyCli {
@@ -102,31 +109,4 @@ public class ProxyImpl {
 			return new MessageResponse("Proxy stopping");
 		}
 	}
-
-//	private static class UDPThread implements Runnable {
-//
-//		private DatagramSocket udpSocket;
-//
-//		private UDPThread(DatagramSocket udpSocket) {
-//			this.udpSocket = udpSocket;
-//		}
-//
-//		static public void initNewThread(DatagramSocket udpSocket) {
-//			(new Thread(new UDPThread(udpSocket))).run();
-//		}
-//
-//		public void run() {
-//			Socket socket = null;
-//			try {
-//				socket = udpSocket.receive();
-//
-//				PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-//				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-//
-//				System.out.println(in.readLine());
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		}
-//	}
 }
